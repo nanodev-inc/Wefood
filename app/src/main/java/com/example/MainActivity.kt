@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -17,17 +19,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocalDining
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -38,6 +44,7 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +56,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -61,6 +69,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.example.data.model.OrderStatus
 import com.example.data.model.Restaurant
+import com.example.data.preferences.AppSettings
+import com.example.data.preferences.SettingsPreferences
+import com.example.data.preferences.ThemeMode
 import com.example.data.repository.CatalogRepository
 import com.example.data.repository.UserDataRepository
 import com.example.ui.auth.attemptAutoSignIn
@@ -97,25 +108,42 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      CraveCartTheme {
-        AppNavigation()
+      val context = LocalContext.current
+      val settingsPrefs = remember(context) { SettingsPreferences(context) }
+      val appSettings by settingsPrefs.settings.collectAsStateWithLifecycle()
+      val isDark = when (appSettings.themeMode) {
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+      }
+
+      CraveCartTheme(darkTheme = isDark) {
+        AppNavigation(
+          appSettings = appSettings,
+          settingsPrefs = settingsPrefs,
+        )
       }
     }
   }
 }
 
 @Composable
-fun AppNavigation(auth: FirebaseAuth = Firebase.auth) {
+fun AppNavigation(
+  appSettings: AppSettings,
+  settingsPrefs: SettingsPreferences,
+  auth: FirebaseAuth = Firebase.auth,
+) {
   val context = LocalContext.current
   val scope = rememberCoroutineScope()
   val credentialManager = remember(context) { CredentialManager.create(context) }
+  var isCheckingSession by remember { mutableStateOf(auth.currentUser == null) }
 
   LaunchedEffect(Unit) {
     attemptAutoSignIn(
       context = context,
       credentialManager = credentialManager,
-      onAuthSuccess = {},
-      onUnauthenticated = {},
+      onAuthSuccess = { isCheckingSession = false },
+      onUnauthenticated = { isCheckingSession = false },
       scope = scope,
     )
   }
@@ -123,19 +151,71 @@ fun AppNavigation(auth: FirebaseAuth = Firebase.auth) {
   val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
   val user = currentUser
 
-  if (user == null) {
-    AuthScreen(
-      onAuthSuccess = {},
-    )
-  } else {
-    key(user.uid) {
-      CraveCartAppShell(
-        currentUserId = user.uid,
-        displayName = user.displayName ?: "CraveCart Member",
-        email = user.email ?: "",
-        onSignOut = {
-          signOutUser(credentialManager = credentialManager, scope = scope)
-        },
+  when {
+    user == null && isCheckingSession -> {
+      SplashLoadingScreen()
+    }
+    user == null -> {
+      AuthScreen(onAuthSuccess = {})
+    }
+    else -> {
+      key(user.uid) {
+        CraveCartAppShell(
+          currentUserId = user.uid,
+          displayName = user.displayName ?: "CraveCart Member",
+          email = user.email ?: "",
+          appSettings = appSettings,
+          settingsPrefs = settingsPrefs,
+          onSignOut = {
+            signOutUser(credentialManager = credentialManager, scope = scope)
+          },
+        )
+      }
+    }
+  }
+}
+
+@Composable
+private fun SplashLoadingScreen() {
+  Box(
+    modifier = Modifier
+      .fillMaxSize()
+      .background(MaterialTheme.colorScheme.background)
+      .windowInsetsPadding(WindowInsets.safeDrawing),
+    contentAlignment = Alignment.Center,
+  ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+      Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(72.dp),
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            imageVector = Icons.Filled.LocalDining,
+            contentDescription = "CraveCart logo",
+            tint = Color.White,
+            modifier = Modifier.size(38.dp),
+          )
+        }
+      }
+      Spacer(modifier = Modifier.height(16.dp))
+      Text(
+        text = stringResource(R.string.app_name),
+        style = MaterialTheme.typography.displayLarge,
+        color = MaterialTheme.colorScheme.primary,
+      )
+      Spacer(modifier = Modifier.height(6.dp))
+      Text(
+        text = "Preparing fresh kitchens & mart…",
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+      )
+      Spacer(modifier = Modifier.height(20.dp))
+      CircularProgressIndicator(
+        color = MaterialTheme.colorScheme.primary,
+        strokeWidth = 3.dp,
+        modifier = Modifier.size(30.dp),
       )
     }
   }
@@ -146,6 +226,8 @@ fun CraveCartAppShell(
   currentUserId: String,
   displayName: String,
   email: String,
+  appSettings: AppSettings,
+  settingsPrefs: SettingsPreferences,
   onSignOut: () -> Unit,
 ) {
   val viewModel: CraveCartViewModel = viewModel(
@@ -162,6 +244,7 @@ fun CraveCartAppShell(
           currentUserId = currentUserId,
           displayName = displayName,
           email = email,
+          initialVegOnly = appSettings.defaultVegOnly,
         )
       }
     },
@@ -200,7 +283,7 @@ fun CraveCartAppShell(
   val primaryLiveOrder = activeOrders.firstOrNull()
 
   val showFloatingCart = !showCartCheckout && cartItems.isNotEmpty() && selectedTab != MainTab.ORDERS
-  val showLiveBanner = !showCartCheckout && primaryLiveOrder != null && selectedTab != MainTab.ORDERS
+  val showLiveBanner = !showCartCheckout && appSettings.orderAlertsEnabled && primaryLiveOrder != null && selectedTab != MainTab.ORDERS
 
   val bottomOverlayDp = when {
     showFloatingCart && showLiveBanner -> 136.dp
@@ -212,7 +295,7 @@ fun CraveCartAppShell(
     Triple(MainTab.FOOD, stringResource(R.string.nav_food), Pair(Icons.Filled.Restaurant, Icons.Outlined.Restaurant)),
     Triple(MainTab.MART, stringResource(R.string.nav_mart), Pair(Icons.Filled.Bolt, Icons.Outlined.Bolt)),
     Triple(MainTab.ORDERS, stringResource(R.string.nav_orders), Pair(Icons.AutoMirrored.Filled.ReceiptLong, Icons.AutoMirrored.Outlined.ReceiptLong)),
-    Triple(MainTab.SAVED, stringResource(R.string.nav_saved), Pair(Icons.Filled.Favorite, Icons.Outlined.FavoriteBorder)),
+    Triple(MainTab.SAVED, stringResource(R.string.nav_saved), Pair(Icons.Filled.Person, Icons.Outlined.Person)),
   )
 
   BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -389,10 +472,14 @@ fun CraveCartAppShell(
                 SavedTabScreen(
                   displayName = displayName,
                   email = email,
+                  appSettings = appSettings,
                   addresses = addresses,
                   activeAddressId = activeAddress?.id,
                   favoriteRestaurants = favRestaurants,
                   bottomOverlayPadding = bottomOverlayDp,
+                  onThemeModeChange = settingsPrefs::setThemeMode,
+                  onDefaultVegOnlyChange = settingsPrefs::setDefaultVegOnly,
+                  onOrderAlertsChange = settingsPrefs::setOrderAlertsEnabled,
                   onOpenAddressPicker = { showAddressSheet = true },
                   onSelectAddress = viewModel::selectAddress,
                   onOpenRestaurant = { rest ->

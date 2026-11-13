@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Remove
@@ -226,41 +227,53 @@ fun CartCheckoutScreen(
               )
             }
 
-            Surface(
-              shape = RoundedCornerShape(10.dp),
-              border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-              color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-            ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                  onClick = { onUpdateQuantity(entry.id, (entry.quantity - 1).toInt()) },
-                  modifier = Modifier.size(36.dp),
-                ) {
-                  Icon(
-                    Icons.Filled.Remove,
-                    contentDescription = "Decrease ${entry.itemName}",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Surface(
+                shape = RoundedCornerShape(10.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+              ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  IconButton(
+                    onClick = { onUpdateQuantity(entry.id, (entry.quantity - 1).toInt()) },
+                    modifier = Modifier.size(36.dp),
+                  ) {
+                    Icon(
+                      Icons.Filled.Remove,
+                      contentDescription = "Decrease ${entry.itemName}",
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(16.dp),
+                    )
+                  }
+                  Text(
+                    text = entry.quantity.toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 4.dp),
                   )
+                  IconButton(
+                    onClick = { onUpdateQuantity(entry.id, (entry.quantity + 1).toInt()) },
+                    modifier = Modifier.size(36.dp),
+                  ) {
+                    Icon(
+                      Icons.Filled.Add,
+                      contentDescription = "Increase ${entry.itemName}",
+                      tint = MaterialTheme.colorScheme.primary,
+                      modifier = Modifier.size(16.dp),
+                    )
+                  }
                 }
-                Text(
-                  text = entry.quantity.toString(),
-                  style = MaterialTheme.typography.labelLarge,
-                  color = MaterialTheme.colorScheme.primary,
-                  fontWeight = FontWeight.Bold,
-                  modifier = Modifier.padding(horizontal = 4.dp),
+              }
+              IconButton(
+                onClick = { onUpdateQuantity(entry.id, 0) },
+                modifier = Modifier.testTag("remove_cart_${entry.id}"),
+              ) {
+                Icon(
+                  imageVector = Icons.Filled.DeleteOutline,
+                  contentDescription = "Remove ${entry.itemName} from cart",
+                  tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                IconButton(
-                  onClick = { onUpdateQuantity(entry.id, (entry.quantity + 1).toInt()) },
-                  modifier = Modifier.size(36.dp),
-                ) {
-                  Icon(
-                    Icons.Filled.Add,
-                    contentDescription = "Increase ${entry.itemName}",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp),
-                  )
-                }
               }
             }
           }

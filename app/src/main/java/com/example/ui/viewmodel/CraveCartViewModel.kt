@@ -78,9 +78,10 @@ class CraveCartViewModel(
   private val currentUserId: String,
   private val displayName: String,
   private val email: String,
+  initialVegOnly: Boolean = false,
 ) : ViewModel() {
 
-  private val _foodFilter = MutableStateFlow(FoodFilterState())
+  private val _foodFilter = MutableStateFlow(FoodFilterState(pureVegOnly = initialVegOnly))
   val foodFilter: StateFlow<FoodFilterState> = _foodFilter.asStateFlow()
 
   private val _martFilter = MutableStateFlow(MartFilterState())

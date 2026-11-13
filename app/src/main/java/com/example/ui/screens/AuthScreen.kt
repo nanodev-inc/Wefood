@@ -137,7 +137,7 @@ fun AuthScreen(
       Spacer(modifier = Modifier.height(24.dp))
 
       Text(
-        text = "Hot kitchens & 10-min fresh groceries",
+        text = "Register or sign in to order fast",
         style = MaterialTheme.typography.headlineLarge,
         textAlign = TextAlign.Center,
         color = MaterialTheme.colorScheme.onBackground,

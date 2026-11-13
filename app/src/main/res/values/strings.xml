@@ -6,7 +6,7 @@
     <string name="nav_food">Food</string>
     <string name="nav_mart">Mart</string>
     <string name="nav_orders">Orders</string>
-    <string name="nav_saved">Saved</string>
+    <string name="nav_saved">Profile</string>
     <string name="search_food_hint">Search dishes, cuisines, or restaurants…</string>
     <string name="search_mart_hint">Search milk, avocados, sourdough, snacks…</string>
     <string name="view_cart">View Cart</string>

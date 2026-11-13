@@ -65,7 +65,6 @@ import com.example.data.model.FoodOrder
 import com.example.data.model.OrderStatus
 import com.example.data.model.SourceType
 import com.example.ui.theme.AmberTertiary
-import com.example.ui.theme.CrimsonPrimary
 import com.example.ui.theme.EmeraldSecondary
 import com.example.ui.viewmodel.UiState
 
@@ -236,6 +235,11 @@ private fun LiveOrderTrackerCard(
         verticalAlignment = Alignment.CenterVertically,
       ) {
         Column(modifier = Modifier.weight(1f)) {
+          val primaryColor = MaterialTheme.colorScheme.primary
+          val secondaryColor = MaterialTheme.colorScheme.secondary
+          val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+          val outlineColor = MaterialTheme.colorScheme.outline
+
           Surface(
             shape = RoundedCornerShape(8.dp),
             color = if (isMart) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primaryContainer,
@@ -243,7 +247,7 @@ private fun LiveOrderTrackerCard(
             Text(
               text = if (isMart) "QUICK MART LIVE" else "FOOD DELIVERY LIVE",
               style = MaterialTheme.typography.labelSmall,
-              color = if (isMart) EmeraldSecondary else CrimsonPrimary,
+              color = if (isMart) secondaryColor else primaryColor,
               fontWeight = FontWeight.Bold,
               modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             )
@@ -278,6 +282,9 @@ private fun LiveOrderTrackerCard(
       Spacer(modifier = Modifier.height(14.dp))
 
       // Custom Compose Canvas Live Delivery Route
+      val routeActiveColor = if (isMart) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+      val routeTrackColor = MaterialTheme.colorScheme.outline
+      val routePinColor = MaterialTheme.colorScheme.onSurface
       Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
@@ -301,7 +308,7 @@ private fun LiveOrderTrackerCard(
 
           drawPath(
             path = fullPath,
-            color = Color(0xFFD6C7BA),
+            color = routeTrackColor,
             style = Stroke(
               width = 6f,
               cap = StrokeCap.Round,
@@ -325,22 +332,21 @@ private fun LiveOrderTrackerCard(
           }
           drawPath(
             path = activePath,
-            color = if (isMart) Color(0xFF157A4B) else Color(0xFFC81E32),
+            color = routeActiveColor,
             style = Stroke(width = 7f, cap = StrokeCap.Round),
           )
 
           // Origin & destination pins
-          drawCircle(color = Color(0xFF1C1614), radius = 11f, center = start)
-          drawCircle(color = Color(0xFF157A4B), radius = 12f, center = end)
+          drawCircle(color = routePinColor, radius = 11f, center = start)
+          drawCircle(color = EmeraldSecondary, radius = 12f, center = end)
 
           // Pulsing courier halo + marker
-          val badgeColor = if (isMart) Color(0xFF157A4B) else Color(0xFFC81E32)
           drawCircle(
-            color = badgeColor.copy(alpha = 0.25f),
+            color = routeActiveColor.copy(alpha = 0.25f),
             radius = 22f * pulseScale,
             center = courierPoint,
           )
-          drawCircle(color = badgeColor, radius = 13f, center = courierPoint)
+          drawCircle(color = routeActiveColor, radius = 13f, center = courierPoint)
           drawCircle(color = Color.White, radius = 5f, center = courierPoint)
         }
       }
