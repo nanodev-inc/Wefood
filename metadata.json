@@ -1,0 +1,6 @@
+{
+  "name": "CraveCart",
+  "description": "Food delivery and 10-minute quick grocery mart app with dish customization, live order tracking, and cloud sync.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

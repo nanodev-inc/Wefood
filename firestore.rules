@@ -1,0 +1,215 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.email is string && data.email.size() <= 120 &&
+             (!('activeAddressId' in data) || (data.activeAddressId is string && data.activeAddressId.size() <= 128));
+    }
+
+    function isValidSavedAddress(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.label in ['Home', 'Work', 'Other'] &&
+             data.addressLine is string && data.addressLine.size() >= 5 && data.addressLine.size() <= 180 &&
+             (!('landmark' in data) || (data.landmark is string && data.landmark.size() <= 120)) &&
+             data.isDefault is bool;
+    }
+
+    function isValidFavoriteRestaurant(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.restaurantId is string && data.restaurantId.size() >= 1 && data.restaurantId.size() <= 64 &&
+             data.restaurantName is string && data.restaurantName.size() >= 1 && data.restaurantName.size() <= 100;
+    }
+
+    function isValidCartEntry(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.sourceType in ['FOOD', 'MART'] &&
+             data.vendorId is string && data.vendorId.size() >= 1 && data.vendorId.size() <= 64 &&
+             data.vendorName is string && data.vendorName.size() >= 1 && data.vendorName.size() <= 100 &&
+             data.itemId is string && data.itemId.size() >= 1 && data.itemId.size() <= 64 &&
+             data.itemName is string && data.itemName.size() >= 1 && data.itemName.size() <= 120 &&
+             data.unitPrice is number && data.unitPrice > 0 && data.unitPrice <= 10000 &&
+             data.quantity is int && data.quantity >= 1 && data.quantity <= 50 &&
+             data.isVeg is bool &&
+             (!('optionsSummary' in data) || (data.optionsSummary is string && data.optionsSummary.size() <= 240)) &&
+             (!('specialNote' in data) || (data.specialNote is string && data.specialNote.size() <= 200));
+    }
+
+    function isValidOrderStatus(status) {
+      return status in ['CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+    }
+
+    function isValidOrderStatusTransition(prevStatus, nextStatus) {
+      return prevStatus == nextStatus ||
+             (prevStatus == 'CONFIRMED' && nextStatus in ['PREPARING', 'OUT_FOR_DELIVERY', 'DELIVERED']) ||
+             (prevStatus == 'PREPARING' && nextStatus in ['OUT_FOR_DELIVERY', 'DELIVERED']) ||
+             (prevStatus == 'OUT_FOR_DELIVERY' && nextStatus == 'DELIVERED');
+    }
+
+    function isValidFoodOrder(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.orderType in ['FOOD', 'MART'] &&
+             data.vendorId is string && data.vendorId.size() >= 1 && data.vendorId.size() <= 64 &&
+             data.vendorName is string && data.vendorName.size() >= 1 && data.vendorName.size() <= 100 &&
+             data.itemsSummary is string && data.itemsSummary.size() >= 1 && data.itemsSummary.size() <= 500 &&
+             data.itemCount is int && data.itemCount >= 1 && data.itemCount <= 100 &&
+             data.subtotal is number && data.subtotal >= 0 && data.subtotal <= 50000 &&
+             data.deliveryFee is number && data.deliveryFee >= 0 && data.deliveryFee <= 500 &&
+             data.discount is number && data.discount >= 0 && data.discount <= 10000 &&
+             data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 50000 &&
+             data.deliveryAddress is string && data.deliveryAddress.size() >= 5 && data.deliveryAddress.size() <= 240 &&
+             (!('couponCode' in data) || (data.couponCode is string && data.couponCode.size() <= 32)) &&
+             isValidOrderStatus(data.status) &&
+             data.etaMinutes is int && data.etaMinutes >= 0 && data.etaMinutes <= 180 &&
+             data.courierName is string && data.courierName.size() >= 1 && data.courierName.size() <= 80 &&
+             (!('rating' in data) || (data.rating is int && data.rating >= 0 && data.rating <= 5));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if false;
+
+      allow create: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'email', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'email', 'activeAddressId', 'createdAt', 'updatedAt']) &&
+                       isValidTimestamp(incoming().createdAt) &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       isValidUserProfile(incoming(), userId);
+
+      allow update: if isOwner(userId) &&
+                       isValidId(userId) &&
+                       isValidUserProfile(incoming(), userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidTimestamp(incoming().updatedAt) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'email', 'activeAddressId', 'updatedAt']);
+
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /addresses/{addressId} {
+        allow get: if isOwner(userId) && isValidId(addressId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(addressId) &&
+                         incoming().keys().hasAll(['userId', 'label', 'addressLine', 'isDefault', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'label', 'addressLine', 'landmark', 'isDefault', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidSavedAddress(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(addressId) &&
+                         isValidSavedAddress(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['label', 'addressLine', 'landmark', 'isDefault', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(addressId);
+      }
+
+      match /favorites/{restaurantId} {
+        allow get: if isOwner(userId) && isValidId(restaurantId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(restaurantId) &&
+                         incoming().keys().hasAll(['userId', 'restaurantId', 'restaurantName', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'restaurantId', 'restaurantName', 'createdAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidFavoriteRestaurant(incoming(), userId);
+
+        allow update: if false;
+        allow delete: if isOwner(userId) && isValidId(restaurantId);
+      }
+
+      match /cartItems/{cartItemId} {
+        allow get: if isOwner(userId) && isValidId(cartItemId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(cartItemId) &&
+                         incoming().keys().hasAll(['userId', 'sourceType', 'vendorId', 'vendorName', 'itemId', 'itemName', 'unitPrice', 'quantity', 'isVeg', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'sourceType', 'vendorId', 'vendorName', 'itemId', 'itemName', 'unitPrice', 'quantity', 'isVeg', 'optionsSummary', 'specialNote', 'createdAt', 'updatedAt']) &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidCartEntry(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(cartItemId) &&
+                         isValidCartEntry(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['quantity', 'unitPrice', 'optionsSummary', 'specialNote', 'updatedAt']);
+
+        allow delete: if isOwner(userId) && isValidId(cartItemId);
+      }
+
+      match /orders/{orderId} {
+        allow get: if isOwner(userId) && isValidId(orderId);
+        allow list: if isOwner(userId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         incoming().keys().hasAll(['userId', 'orderType', 'vendorId', 'vendorName', 'itemsSummary', 'itemCount', 'subtotal', 'deliveryFee', 'discount', 'totalAmount', 'deliveryAddress', 'status', 'etaMinutes', 'courierName', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'orderType', 'vendorId', 'vendorName', 'itemsSummary', 'itemCount', 'subtotal', 'deliveryFee', 'discount', 'totalAmount', 'deliveryAddress', 'couponCode', 'status', 'etaMinutes', 'courierName', 'rating', 'createdAt', 'updatedAt']) &&
+                         incoming().status == 'CONFIRMED' &&
+                         isValidTimestamp(incoming().createdAt) &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         isValidFoodOrder(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(orderId) &&
+                         isValidFoodOrder(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidTimestamp(incoming().updatedAt) &&
+                         (
+                           (existing().status != 'DELIVERED' &&
+                            isValidOrderStatusTransition(existing().status, incoming().status) &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['status', 'etaMinutes', 'updatedAt'])) ||
+                           (existing().status == 'DELIVERED' &&
+                            incoming().status == 'DELIVERED' &&
+                            incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'updatedAt']))
+                         );
+
+        allow delete: if false;
+      }
+    }
+  }
+}

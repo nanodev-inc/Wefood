@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Signed-in CraveCart user profile and active address reference.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "User display name." },
+        "email": { "type": "string", "description": "User email address." },
+        "activeAddressId": { "type": "string", "description": "ID of the currently selected delivery address." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp (FieldValue.serverTimestamp())." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp (FieldValue.serverTimestamp())." }
+      },
+      "required": ["userId", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "SavedAddress": {
+      "title": "SavedAddress",
+      "description": "User saved delivery address.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "label": { "type": "string", "enum": ["Home", "Work", "Other"], "description": "Address label." },
+        "addressLine": { "type": "string", "description": "Street and apartment details." },
+        "landmark": { "type": "string", "description": "Nearby landmark." },
+        "isDefault": { "type": "boolean", "description": "Whether this is the default address." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["userId", "label", "addressLine", "isDefault", "createdAt", "updatedAt"]
+    },
+    "FavoriteRestaurant": {
+      "title": "FavoriteRestaurant",
+      "description": "Bookmarked restaurant for quick discovery.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "restaurantId": { "type": "string", "description": "Catalog restaurant identifier." },
+        "restaurantName": { "type": "string", "description": "Display name of the restaurant." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." }
+      },
+      "required": ["userId", "restaurantId", "restaurantName", "createdAt"]
+    },
+    "CartEntry": {
+      "title": "CartEntry",
+      "description": "Persisted Food or Quick Mart cart line item with selected customizations.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "sourceType": { "type": "string", "enum": ["FOOD", "MART"], "description": "Fulfillment channel." },
+        "vendorId": { "type": "string", "description": "Restaurant or Mart store ID." },
+        "vendorName": { "type": "string", "description": "Restaurant or Mart store name." },
+        "itemId": { "type": "string", "description": "Catalog dish or grocery item ID." },
+        "itemName": { "type": "string", "description": "Item display name." },
+        "unitPrice": { "type": "number", "description": "Unit price including customization add-ons." },
+        "quantity": { "type": "integer", "description": "Line item quantity." },
+        "isVeg": { "type": "boolean", "description": "Vegetarian dietary marker." },
+        "optionsSummary": { "type": "string", "description": "Selected portion and add-ons summary." },
+        "specialNote": { "type": "string", "description": "Optional kitchen or packing note." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["userId", "sourceType", "vendorId", "vendorName", "itemId", "itemName", "unitPrice", "quantity", "isVeg", "createdAt", "updatedAt"]
+    },
+    "FoodOrder": {
+      "title": "FoodOrder",
+      "description": "Placed food or quick mart order with live delivery status tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner Firebase Auth UID." },
+        "orderType": { "type": "string", "enum": ["FOOD", "MART"], "description": "Fulfillment channel." },
+        "vendorId": { "type": "string", "description": "Restaurant or Mart store ID." },
+        "vendorName": { "type": "string", "description": "Restaurant or Mart store name." },
+        "itemsSummary": { "type": "string", "description": "Human-readable ordered items summary." },
+        "itemCount": { "type": "integer", "description": "Total item count in the order." },
+        "subtotal": { "type": "number", "description": "Items subtotal." },
+        "deliveryFee": { "type": "number", "description": "Delivery fee applied." },
+        "discount": { "type": "number", "description": "Promo discount applied." },
+        "totalAmount": { "type": "number", "description": "Final order total." },
+        "deliveryAddress": { "type": "string", "description": "Snapshot of destination delivery address." },
+        "couponCode": { "type": "string", "description": "Applied promo coupon code." },
+        "status": { "type": "string", "enum": ["CONFIRMED", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED"], "description": "Live fulfillment stage." },
+        "etaMinutes": { "type": "integer", "description": "Estimated minutes remaining." },
+        "courierName": { "type": "string", "description": "Assigned delivery partner name." },
+        "rating": { "type": "integer", "description": "Optional post-delivery user rating (0 to 5)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["userId", "orderType", "vendorId", "vendorName", "itemsSummary", "itemCount", "subtotal", "deliveryFee", "discount", "totalAmount", "deliveryAddress", "status", "etaMinutes", "courierName", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile documents isolated per authenticated UID."
+    },
+    "/users/{userId}/addresses/{addressId}": {
+      "schema": { "$ref": "#/entities/SavedAddress" },
+      "description": "Saved delivery addresses owned by the user."
+    },
+    "/users/{userId}/favorites/{restaurantId}": {
+      "schema": { "$ref": "#/entities/FavoriteRestaurant" },
+      "description": "Favorite restaurants bookmarked by the user."
+    },
+    "/users/{userId}/cartItems/{cartItemId}": {
+      "schema": { "$ref": "#/entities/CartEntry" },
+      "description": "Active cart items synced across sessions."
+    },
+    "/users/{userId}/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/FoodOrder" },
+      "description": "Placed food and quick mart orders with live status tracking."
+    }
+  }
+}
